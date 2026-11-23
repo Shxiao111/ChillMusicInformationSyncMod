@@ -155,11 +155,22 @@ namespace ChillMusicInformationSync.SMTC
         {
             (TimeSpan Position, TimeSpan Duration) timeline = SMTCImport.Instance.GetTimeline();
 
-            if ( timeline.Duration.TotalSeconds >= 0)
+            if (timeline.Duration.TotalSeconds > 0)
             {
                 float normalizedProgress = (float)(timeline.Position.TotalSeconds / timeline.Duration.TotalSeconds);
+                if (float.IsNaN(normalizedProgress) || normalizedProgress < 0f)
+                {
+                    normalizedProgress = 0f;
+                }
+                else if (normalizedProgress > 1f)
+                {
+                    normalizedProgress = 1f;
+                }
                 SMTCStatus.CurrentProgress = normalizedProgress;
-                //_logger.LogInfo($"[SMTC Event Handle] 进度更新: {timeline.Position} / {timeline.Duration} ({normalizedProgress:P2})");
+            }
+            else
+            {
+                SMTCStatus.CurrentProgress = 0f;
             }
         }
        

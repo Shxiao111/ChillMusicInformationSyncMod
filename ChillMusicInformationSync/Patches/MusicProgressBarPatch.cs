@@ -11,16 +11,9 @@ namespace ChillMusicInformationSync.Patches
         {
             if (SMTCStatus.IsControlledByMod)
             {
-                if (SMTCStatus.CurrentProgress >= 0f)
-                {
-                    __result = SMTCStatus.CurrentProgress;
-                    return false;
-                }
-                else
-                {
-                    return true;
-
-                }
+                float progress = SMTCStatus.CurrentProgress;
+                __result = (float.IsNaN(progress) || progress < 0f) ? 0f : progress;
+                return false;
             }
             return true;
         }

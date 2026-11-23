@@ -6,6 +6,9 @@ using System;
 [HarmonyPatch(typeof(MusicService), "SetMusicProgress", new Type[] { typeof(float) })]
 public static class SetMusicProgressPatch
 {
+    private static double _lastSeekSeconds = -1;
+    private static DateTime _lastSeekUtc = DateTime.MinValue;
+
     public static bool Prefix(float progress)
     {
         if (SMTCStatus.IsControlledByMod)
@@ -16,20 +19,24 @@ public static class SetMusicProgressPatch
 
                 if (duration.TotalSeconds > 0)
                 {
-                    // 使用 TotalSeconds 计算更直观，避免精度问题（TimeSpan.Ticks是100纳秒）
-                    double newTotalSeconds = duration.TotalSeconds * progress;
+                    double clampedProgress = progress < 0f ? 0f : (progress > 1f ? 1f : progress);
+                    double newTotalSeconds = duration.TotalSeconds * clampedProgress;
+                    DateTime now = DateTime.UtcNow;
+                    if (Math.Abs(newTotalSeconds - _lastSeekSeconds) < 0.05 && (now - _lastSeekUtc).TotalMilliseconds < 100)
+                    {
+                        return false;
+                    }
 
-                    // 将新的总秒数转换回 TimeSpan
+                    _lastSeekSeconds = newTotalSeconds;
+                    _lastSeekUtc = now;
                     TimeSpan newPosition = TimeSpan.FromSeconds(newTotalSeconds);
-
                     SMTCImport.SetTimelinePosition(newPosition);
-
                 }
                 return false;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return true;
+                return false;
             }
         }
         return true;
