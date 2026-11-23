@@ -2,6 +2,7 @@
 using ChillMusicInformationSync.SMTC;
 using ChillMusicInformationSync.UISync;
 using HarmonyLib;
+using System.Reflection;
 
 
 namespace ChillMusicInformationSync.Patches
@@ -101,6 +102,53 @@ namespace ChillMusicInformationSync.Patches
                 return false;
             }
             return true;
+        }
+    }
+
+    [HarmonyPatch(typeof(FacilityMusic), "IsMusicEmpty", MethodType.Getter)]
+    public static class IsMusicEmptyPatch
+    {
+        [HarmonyPostfix]
+        public static void Postfix(ref bool __result)
+        {
+            if (SMTCStatus.IsControlledByMod)
+            {
+                __result = false;
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(MusicService), "IsAllExcludedMusicFromPlaylist", MethodType.Getter)]
+    public static class IsAllExcludedMusicPatch
+    {
+        [HarmonyPostfix]
+        public static void Postfix(ref bool __result)
+        {
+            if (SMTCStatus.IsControlledByMod)
+            {
+                __result = false;
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(FacilityMusic), "UpdateFacility")]
+    public static class UpdateFacilityEmptyProgressPatch
+    {
+        private static readonly MethodInfo UpdateProgressBarUIMethod =
+            AccessTools.Method(typeof(FacilityMusic), "UpdateProgressBarUI", new[] { typeof(float) });
+
+        [HarmonyPostfix]
+        public static void Postfix(FacilityMusic __instance)
+        {
+            if (!SMTCStatus.IsControlledByMod || __instance.PlayingMusic != null || UpdateProgressBarUIMethod == null)
+            {
+                return;
+            }
+
+            float progress = __instance.MusicService != null
+                ? __instance.MusicService.GetCurrentMusicProgress()
+                : SMTCStatus.CurrentProgress;
+            UpdateProgressBarUIMethod.Invoke(__instance, new object[] { progress });
         }
     }
 }
