@@ -141,10 +141,8 @@ namespace ChillMusicInformationSync.UISync
         public static void PauseGameMusic()
         {
             if (_facilityInstance == null) return;
-            if (!_facilityInstance.IsPaused)
-            {
-                _facilityInstance.PauseMusic();
-            }
+            _facilityInstance.MusicService?.Pause();
+            SetGameMainState(false);
         }
     }
 }
