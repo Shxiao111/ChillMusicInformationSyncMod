@@ -81,10 +81,9 @@ namespace ChillMusicInformationSync.SMTC
         private SynchronizationContext _mainThreadContext;
 
         // 缓冲区 (避免每次 Getter 都重新分配内存)
-        private readonly byte[] _titleBuffer = new byte[256];
-        private readonly byte[] _artistBuffer = new byte[256];
+        private readonly byte[] _titleBuffer = new byte[2048];
+        private readonly byte[] _artistBuffer = new byte[2048];
         private readonly byte[] _coverBuffer = new byte[1024 * 256]; // 256KB
-
 
         private SMTCImport()
         {
@@ -137,22 +136,66 @@ namespace ChillMusicInformationSync.SMTC
         public string GetTitle()
         {
             int len = SMTC_GetTitle(_titleBuffer, _titleBuffer.Length);
-            if (len > 0)
-            {
-                // DLL 返回 UTF-8 编码的 C-style 字符串，需要正确解码
-                return Encoding.UTF8.GetString(_titleBuffer, 0, len);
-            }
-            return string.Empty;
+            return DecodeUtf8Trimmed(_titleBuffer, len);
         }
 
         public string GetArtist()
         {
             int len = SMTC_GetArtist(_artistBuffer, _artistBuffer.Length);
-            if (len > 0)
+            return DecodeUtf8Trimmed(_artistBuffer, len);
+        }
+
+        private static string DecodeUtf8Trimmed(byte[] buffer, int len)
+        {
+            if (len <= 0)
             {
-                return Encoding.UTF8.GetString(_artistBuffer, 0, len);
+                return string.Empty;
             }
-            return string.Empty;
+            if (len > buffer.Length)
+            {
+                len = buffer.Length;
+            }
+
+            int i = len - 1;
+            while (i >= 0 && (buffer[i] & 0xC0) == 0x80)
+            {
+                i--;
+            }
+
+            if (i < 0)
+            {
+                return string.Empty;
+            }
+
+            byte lead = buffer[i];
+            int expected;
+            if ((lead & 0x80) == 0)
+            {
+                expected = 1;
+            }
+            else if ((lead & 0xE0) == 0xC0)
+            {
+                expected = 2;
+            }
+            else if ((lead & 0xF0) == 0xE0)
+            {
+                expected = 3;
+            }
+            else if ((lead & 0xF8) == 0xF0)
+            {
+                expected = 4;
+            }
+            else
+            {
+                expected = int.MaxValue;
+            }
+
+            if (len - i < expected)
+            {
+                len = i;
+            }
+
+            return len > 0 ? Encoding.UTF8.GetString(buffer, 0, len) : string.Empty;
         }
         public byte[] GetCoverImage()
 
